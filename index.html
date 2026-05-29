@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SYBD — Save Your Boiler Data</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+:root{--bg:#fafaf9;--bg-warm:#f5f5f4;--surface:#ffffff;--text:#1c1917;--text-secondary:#57534e;--text-tertiary:#a8a29e;--accent-warm:#78716c;--border:#e7e5e4;--radius:16px;--radius-sm:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:"Inter",-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#d6d3d1;border-radius:3px}
+.scroll-progress{position:fixed;top:0;left:0;height:2px;background:var(--text);z-index:9999;width:0%}
+@keyframes fadeUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blurReveal{from{opacity:0;filter:blur(12px);transform:translateY(20px)}to{opacity:1;filter:blur(0);transform:translateY(0)}}
+@keyframes charReveal{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{box-shadow:0 0 0 8px rgba(34,197,94,0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s ease}
+.reveal.revealed{opacity:1;transform:translateY(0)}
+.reveal-blur{opacity:0;filter:blur(10px);transform:translateY(20px);transition:opacity 1s ease,filter 1s ease,transform 1s ease}
+.reveal-blur.revealed{opacity:1;filter:blur(0);transform:translateY(0)}
+.reveal-scale{opacity:0;transform:scale(.92) translateY(20px);transition:opacity .8s ease,transform .8s ease}
+.reveal-scale.revealed{opacity:1;transform:scale(1) translateY(0)}
+.stagger-1{transition-delay:.1s}.stagger-2{transition-delay:.2s}.stagger-3{transition-delay:.3s}.stagger-4{transition-delay:.4s}
+.hero{position:relative;max-width:1280px;margin:0 auto;padding:64px 32px 48px;text-align:center;overflow:hidden}
+.hero-label{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;background:var(--surface);border:1px solid var(--border);border-radius:100px;font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:2px;margin-bottom:28px;animation:blurReveal .8s ease .2s both}
+.hero-label::before{content:'';width:6px;height:6px;background:#22c55e;border-radius:50%;animation:pulse 2s infinite}
+.hero h1{font-size:clamp(34px,4.2vw,56px);font-weight:400;letter-spacing:-.03em;line-height:1.1;margin-bottom:16px;text-wrap:balance}
+.hero h1 .word{display:inline-block;overflow:hidden;margin-right:.25em}
+.hero h1 .word span{display:inline-block;animation:charReveal .7s ease both}
+.hero h1 .word:nth-child(1) span{animation-delay:.3s}.hero h1 .word:nth-child(2) span{animation-delay:.4s}.hero h1 .word:nth-child(3) span{animation-delay:.5s}.hero h1 .word:nth-child(4) span{animation-delay:.6s}
+.hero h1 strong{font-weight:500;color:var(--accent-warm)}
+.hero-desc{font-size:16px;color:var(--text-secondary);max-width:480px;margin:0 auto 28px;line-height:1.6;min-height:3.2em;text-align:center}
+.cursor{display:inline-block;width:2px;height:1.1em;background:var(--text-tertiary);margin-left:2px;vertical-align:text-bottom;animation:blink .75s step-end infinite}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;animation:fadeUp .6s ease 1.2s both}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:14px 28px;font-size:14px;font-weight:600;border-radius:var(--radius-sm);text-decoration:none;transition:all .25s ease;letter-spacing:-.1px;border:none;cursor:pointer;line-height:1}
+.btn-primary{background:var(--text);color:var(--bg);position:relative;overflow:hidden}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.15);background:var(--accent-warm)}
+.btn-ghost{background:transparent;color:var(--text-secondary);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--text-tertiary);color:var(--text);transform:translateY(-3px);background:var(--surface);box-shadow:0 8px 24px rgba(0,0,0,.06)}
+/* ===== CHAT POPUP ===== */
+.chat-popup{position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%) scale(.95);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;white-space:nowrap;opacity:0;pointer-events:none;transition:all .3s ease;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.15);cursor:pointer}
+.chat-popup.show{opacity:1;transform:translateX(-50%) scale(1);pointer-events:auto}
+.chat-popup::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--text)}
+
+.stats-bar{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.stats-inner{max-width:1280px;margin:0 auto;padding:0 32px;display:grid;grid-template-columns:repeat(3,1fr)}
+.stat-item{padding:32px 0;text-align:center;border-right:1px solid var(--border);transition:all .3s ease}
+.stat-item:last-child{border-right:none}
+.stat-value{font-size:36px;font-weight:300;letter-spacing:-.03em;color:var(--text);margin-bottom:8px;line-height:1;transition:transform .4s ease}
+.stat-item:hover .stat-value{transform:scale(1.1);color:var(--accent-warm)}
+.stat-label{font-size:12px;color:var(--text-tertiary);font-weight:500;text-transform:uppercase;letter-spacing:1.5px;transition:letter-spacing .4s ease}
+.stat-item:hover .stat-label{letter-spacing:3px;color:var(--text-secondary)}
+.section{max-width:1280px;margin:0 auto;padding:0 32px}
+.section-pad{padding-top:60px;padding-bottom:60px}
+.section-header{margin-bottom:40px}
+.section-header h2{font-size:clamp(32px,3.5vw,48px);font-weight:400;letter-spacing:-.03em;line-height:1.1;margin-bottom:12px}
+.section-header h2 strong{font-weight:500;color:var(--accent-warm)}
+.section-header p{color:var(--text-secondary);font-size:17px;max-width:520px;line-height:1.6}
+.designed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.designed-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:36px 28px;transition:all .5s ease;position:relative;overflow:hidden}
+.designed-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--text),var(--accent-warm));transform:scaleX(0);transform-origin:left;transition:transform .6s ease}
+.designed-card:hover::before{transform:scaleX(1)}
+.designed-card:hover{border-color:#d6d3d1;box-shadow:0 16px 48px rgba(0,0,0,.08);transform:translateY(-6px)}
+.designed-num{font-size:12px;font-weight:600;color:var(--text-tertiary);letter-spacing:1px;margin-bottom:16px;text-transform:uppercase}
+.designed-card h3{font-size:20px;font-weight:500;margin-bottom:10px;letter-spacing:-.3px}
+.designed-card p{color:var(--text-secondary);font-size:14px;line-height:1.65}
+.process-section{background:var(--bg-warm);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.process-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:start}
+.process-sticky{position:sticky;top:24px}
+.process-sticky h2{font-size:clamp(32px,3.5vw,48px);font-weight:400;letter-spacing:-.03em;line-height:1.1;margin-bottom:16px}
+.process-sticky h2 strong{font-weight:500;color:var(--accent-warm)}
+.process-sticky p{color:var(--text-secondary);font-size:16px;line-height:1.6;max-width:400px}
+.process-steps{display:flex;flex-direction:column;gap:0;position:relative}
+.process-steps::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,var(--border),var(--text-tertiary) 50%,var(--border))}
+.process-step{padding:28px 0 28px 32px;border-bottom:1px solid var(--border);position:relative;transition:all .4s ease}
+.process-step::before{content:'';position:absolute;left:-5px;top:34px;width:11px;height:11px;background:var(--bg-warm);border:2.5px solid var(--border);border-radius:50%;transition:all .4s ease;z-index:1}
+.process-step:hover::before{background:var(--text);border-color:var(--text);transform:scale(1.4);box-shadow:0 0 0 6px rgba(28,25,23,.08)}
+.process-step:first-child{padding-top:0}.process-step:first-child::before{top:8px}.process-step:last-child{border-bottom:none}
+.process-step:hover{padding-left:40px;background:rgba(255,255,255,.4);border-radius:0 var(--radius) var(--radius) 0}
+.process-step-num{font-size:12px;font-weight:600;color:var(--text-tertiary);letter-spacing:1px;margin-bottom:10px;text-transform:uppercase}
+.process-step:hover .process-step-num{color:var(--text)}
+.process-step h3{font-size:20px;font-weight:500;margin-bottom:8px;letter-spacing:-.3px}
+.process-step:hover h3{transform:translateX(4px)}
+.process-step p{color:var(--text-secondary);font-size:14px;line-height:1.65;max-width:420px}
+.system-block{background:var(--text);border-radius:var(--radius);padding:72px 48px;text-align:center;position:relative;overflow:hidden;transition:transform .6s ease,box-shadow .6s ease}
+.system-block:hover{transform:translateY(-4px);box-shadow:0 24px 80px rgba(0,0,0,.18)}
+.system-block h2{font-size:clamp(28px,3vw,40px);font-weight:400;letter-spacing:-.03em;margin-bottom:16px;color:var(--bg)}
+.system-block h2 strong{font-weight:500;color:#a8a29e}
+.system-block p{color:#a8a29e;font-size:16px;max-width:600px;margin:0 auto;line-height:1.7}
+.features-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px 24px;transition:all .5s ease;position:relative;overflow:hidden}
+.feature-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:0;background:linear-gradient(90deg,var(--text),var(--accent-warm));transition:height .5s ease}
+.feature-card:hover::after{height:4px}
+.feature-card:hover{border-color:#d6d3d1;box-shadow:0 12px 40px rgba(0,0,0,.08);transform:translateY(-5px)}
+.feature-icon{width:40px;height:40px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--bg-warm);border:1px solid var(--border);transition:all .4s ease}
+.feature-card:hover .feature-icon{background:var(--text);border-color:var(--text);transform:scale(1.15) rotate(-5deg);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.feature-icon svg{width:20px;height:20px;stroke:var(--text-secondary);stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke .3s ease}
+.feature-card:hover .feature-icon svg{stroke:var(--bg)}
+.feature-card h4{font-size:15px;font-weight:600;margin-bottom:8px;letter-spacing:-.2px}
+.feature-card:hover h4{transform:translateX(3px)}
+.feature-card p{color:var(--text-secondary);font-size:13px;line-height:1.55}
+.taglines{display:flex;flex-direction:column;gap:0}
+.tagline{padding:24px 0;border-bottom:1px solid var(--border);font-size:18px;font-weight:400;color:var(--text-secondary);display:flex;align-items:center;gap:20px;letter-spacing:-.2px;cursor:default;transition:all .5s ease;position:relative;overflow:hidden}
+.tagline:first-child{padding-top:0}
+.tagline:hover{color:var(--text);padding-left:20px;background:linear-gradient(90deg,rgba(28,25,23,.02) 0%,transparent 100%)}
+.tagline::before{content:"";width:0;height:1px;background:var(--border);flex-shrink:0;transition:all .5s ease}
+.tagline:hover::before{width:56px;background:var(--text-tertiary)}
+.pricing-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:840px;margin:0 auto}
+.price-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:48px 36px;text-align:center;transition:all .6s ease;position:relative;overflow:hidden}
+.price-card:hover{border-color:#d6d3d1;box-shadow:0 20px 60px rgba(0,0,0,.1);transform:translateY(-6px)}
+.price-card.featured{background:var(--text);border-color:var(--text)}
+.price-card.featured:hover{box-shadow:0 24px 72px rgba(0,0,0,.25)}
+.price-card.featured h3,.price-card.featured .price-value,.price-card.featured p{color:var(--bg)}
+.price-card.featured .price-value span{color:#a8a29e}
+.price-card h3{font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:2px;margin-bottom:24px;transition:letter-spacing .4s ease}
+.price-card:hover h3{letter-spacing:4px}
+.price-value{font-size:48px;font-weight:300;letter-spacing:-.03em;margin-bottom:8px;color:var(--text);line-height:1;transition:transform .4s ease}
+.price-card:hover .price-value{transform:scale(1.08)}
+.price-value span{font-size:14px;color:var(--text-tertiary);font-weight:400;margin-left:4px}
+.price-card p{color:var(--text-secondary);font-size:14px;margin-bottom:32px;line-height:1.6}
+.price-card .btn{width:100%}
+.price-card.featured .btn-primary{background:var(--bg);color:var(--text)}
+.price-card.featured .btn-primary:hover{background:var(--bg-warm)}
+.final-cta{max-width:700px;margin:0 auto;padding:0 32px;text-align:center}
+.final-cta h2{font-size:clamp(32px,3.5vw,52px);font-weight:400;letter-spacing:-.03em;margin-bottom:12px;line-height:1.1}
+.final-cta h2 strong{font-weight:500;color:var(--accent-warm)}
+.final-cta p{color:var(--text-secondary);font-size:16px;margin-bottom:28px;line-height:1.6}
+footer{background:var(--bg-warm);border-top:1px solid var(--border);padding:60px 32px 32px}
+.footer-inner{max-width:1280px;margin:0 auto}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:50px}
+.footer-brand{display:flex;align-items:center;gap:14px;margin-bottom:16px;text-decoration:none;transition:transform .3s ease}
+.footer-brand:hover{transform:translateX(6px)}
+.footer-mark{width:36px;height:36px;background:var(--text);border-radius:var(--radius-sm);display:grid;place-items:center;font-weight:800;color:var(--bg);font-size:14px;transition:all .4s ease}
+.footer-brand:hover .footer-mark{transform:rotate(-12deg) scale(1.15);background:var(--accent-warm)}
+.footer-name{font-weight:700;font-size:16px;letter-spacing:-.3px}
+.footer-about{color:var(--text-secondary);font-size:14px;line-height:1.7;max-width:280px}
+.footer-col h4{color:var(--text-tertiary);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
+.footer-links{display:flex;flex-direction:column;gap:12px}
+.footer-links a{color:var(--text-secondary);text-decoration:none;font-size:14px;font-weight:500;transition:all .3s ease;position:relative;display:inline-block}
+.footer-links a::after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--text);transition:width .4s ease}
+.footer-links a:hover{color:var(--text);padding-left:8px}
+.footer-links a:hover::after{width:100%}
+.footer-bottom{text-align:center;border-top:1px solid var(--border);padding-top:24px;color:var(--text-tertiary);font-size:13px;letter-spacing:.3px}
+@media(max-width:1024px){.stats-inner{grid-template-columns:1fr}.stat-item{border-right:none;border-bottom:1px solid var(--border);padding:24px 0}.stat-item:last-child{border-bottom:none}.designed-grid,.features-grid{grid-template-columns:repeat(2,1fr)}.process-grid{grid-template-columns:1fr}.process-sticky{position:relative;top:0;text-align:center;margin-bottom:40px}.process-sticky p{margin:0 auto}.footer-grid{grid-template-columns:repeat(2,1fr);gap:40px}.process-steps::before{display:none}.process-step{padding-left:0}.process-step::before{display:none}.process-step:hover{padding-left:0;background:none}}
+@media(max-width:768px){.hero{padding:60px 20px 40px}.section{padding:0 20px}.section-pad{padding-top:40px;padding-bottom:40px}.designed-grid,.features-grid,.pricing-grid,.footer-grid{grid-template-columns:1fr}.system-block{padding:48px 24px}.final-cta{padding:0 20px}footer{padding:48px 20px 24px}}
+</style>
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+<div class="scroll-progress" id="scrollProgress"></div>
+<section class="hero">
+<div class="hero-content">
+<div class="hero-label">Secure Data Storage</div>
+<h1><span class="word"><span>Save</span></span> <span class="word"><span>your</span></span> <span class="word"><span><strong>boiler</strong></span></span> <span class="word"><span><strong>data</strong></span></span></h1>
+<p class="hero-desc"><span class="typewriter-text" id="typewriter"></span><span class="cursor" id="cursor"></span></p>
+<div class="hero-actions">
+<a class="btn btn-primary" href="https://sites.google.com/view/my-boiler-health/home/get-protected"><span>Get SYBD £50.99</span></a>
+<a class="btn btn-ghost" href="https://sites.google.com/view/my-boiler-health/home/get-protected">Get SYBD LL £55.99</a>
+<span style="position:relative;display:inline-block;"><a class="btn btn-ghost" id="chat-expert-btn" href="#" onclick="event.preventDefault(); if(typeof Tawk_API!=='undefined'){if(Tawk_API.showWidget)Tawk_API.showWidget();if(Tawk_API.maximize)Tawk_API.maximize();}var p=document.getElementById('chat-popup');if(p)p.classList.remove('show');return false;">Chat with Expert</a><div id="chat-popup" class="chat-popup" onclick="var btn=document.getElementById('chat-expert-btn');if(btn)btn.click();">You have a message from expert?</div></span>
+</div>
+</div>
+</section>
+<div class="stats-bar">
+<div class="stats-inner">
+<div class="stat-item reveal stagger-1"><div class="stat-value" data-target="100">0</div><div class="stat-label">% Encrypted Storage</div></div>
+<div class="stat-item reveal stagger-2"><div class="stat-value" data-target="0">0</div><div class="stat-label">Third-Party Sharing</div></div>
+<div class="stat-item reveal stagger-3"><div class="stat-value">24/7</div><div class="stat-label">Data Access</div></div>
+</div>
+</div>
+<div class="section section-pad">
+<div class="section-header reveal-blur"><h2>Designed to <strong>protect you</strong></h2><p>Your boiler data stays private, encrypted, and accessible only to you whenever you need it.</p></div>
+<div class="designed-grid">
+<div class="designed-card reveal-scale stagger-1"><div class="designed-num">01</div><h3>Secure Encrypted Storage</h3><p>All boiler records are stored with advanced encryption to ensure complete data security and peace of mind.</p></div>
+<div class="designed-card reveal-scale stagger-2"><div class="designed-num">02</div><h3>Restricted Access</h3><p>Only authorised users can view or manage boiler data. Full control remains in your hands at all times.</p></div>
+<div class="designed-card reveal-scale stagger-3"><div class="designed-num">03</div><h3>Full Privacy</h3><p>No data sharing with third parties. Your information remains private, protected, and fully confidential.</p></div>
+</div>
+</div>
+<div class="process-section section-pad">
+<div class="section">
+<div class="process-grid">
+<div class="process-sticky reveal-left"><h2>How data <strong>storage works</strong></h2><p>Three simple steps to secure your boiler records. Our platform ensures safe handling from upload to retrieval.</p></div>
+<div class="process-steps">
+<div class="process-step reveal-right stagger-1"><div class="process-step-num">Step 01</div><h3>Email Your Data</h3><p>Send boiler-related data including installation records, service history, and technical specifications.</p></div>
+<div class="process-step reveal-right stagger-2"><div class="process-step-num">Step 02</div><h3>Secure Storage</h3><p>Data is encrypted and stored safely with restricted access and full privacy protection applied.</p></div>
+<div class="process-step reveal-right stagger-3"><div class="process-step-num">Step 03</div><h3>Access Anytime</h3><p>Retrieve your complete data report whenever required for maintenance, support, or compliance.</p></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section section-pad">
+<div class="system-block reveal-scale"><h2>SYBD <strong>System</strong></h2><p>Our system automatically records and protects your boiler's performance, safety, and operational history—giving you instant access whenever you need it.</p></div>
+</div>
+<div class="section section-pad">
+<div class="section-header reveal-blur"><h2>What we <strong>store for you</strong></h2><p>Complete coverage of every boiler record that matters.</p></div>
+<div class="features-grid">
+<div class="feature-card reveal-scale stagger-1"><div class="feature-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><h4>Installation records</h4><p>Full installation details and dates</p></div>
+<div class="feature-card reveal-scale stagger-2"><div class="feature-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h4>Service history</h4><p>Complete maintenance timeline</p></div>
+<div class="feature-card reveal-scale stagger-3"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><h4>Technical specs</h4><p>Model and specification data</p></div>
+<div class="feature-card reveal-scale stagger-4"><div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4m0 4h.01"/></svg></div><h4>Breakdown records</h4><p>Fault and repair history logged</p></div>
+</div>
+</div>
+<div class="section section-pad">
+<div class="section-header reveal-blur"><h2>Trusted <strong>data protection</strong></h2><p>Why homeowners and landlords trust SYBD.</p></div>
+<div class="taglines">
+<div class="tagline reveal stagger-1">Secure storage. Private access. Total control.</div>
+<div class="tagline reveal stagger-2">Your boiler data—protected and always available.</div>
+<div class="tagline reveal stagger-3">No third parties. No data leaks. Just safety.</div>
+<div class="tagline reveal stagger-4">Stay in control of your boiler records forever.</div>
+</div>
+</div>
+<div class="section section-pad">
+<div class="section-header reveal-blur" style="text-align:center;margin:0 auto 40px;max-width:600px"><h2>Choose your <strong>storage plan</strong></h2><p>Don't risk losing your boiler records. Secure them now and access them anytime.</p></div>
+<div class="pricing-grid">
+<div class="price-card reveal-scale stagger-1"><h3>Standard Plan</h3><div class="price-value">£50.99<span>/year</span></div><p>Complete data storage with standard reporting and email support.</p><a class="btn btn-primary" href="https://sites.google.com/view/my-boiler-health/home/get-protected"><span>Get SYBD</span></a></div>
+<div class="price-card featured reveal-scale stagger-2"><h3>Landlord Plan</h3><div class="price-value">£55.99<span>/year</span></div><p>Enhanced storage for multiple properties with priority support and compliance docs.</p><a class="btn btn-primary" href="https://sites.google.com/view/my-boiler-health/home/get-protected"><span>Get SYBD LL</span></a></div>
+</div>
+</div>
+<div class="section" style="padding-bottom:80px">
+<div class="final-cta reveal-blur"><h2>Never lose your <strong>boiler data again</strong></h2><p>Get protected now. Contact us today to start saving your boiler records securely.</p><a class="btn btn-ghost" href="mailto:contactboilerhealth@atomicmail.io">Email Us</a></div>
+</div>
+<footer>
+<div class="footer-inner">
+<div class="footer-grid">
+<div class="reveal stagger-1"><a href="https://sites.google.com/view/my-boiler-health/sybd" class="footer-brand"><div class="footer-mark">S</div><span class="footer-name">Save Your Boiler Data</span></a><p class="footer-about">Smart boiler data protection, secure storage, and complete privacy for every home and landlord.</p></div>
+<div class="footer-col reveal stagger-2"><h4>Coverage</h4><div class="footer-links"><a href="https://sites.google.com/view/my-boiler-health/plans?authuser=1">Plans</a><a href="https://sites.google.com/view/my-boiler-health/sybd?authuser=1">SYBD</a><a href="#">CYBH</a></div></div>
+<div class="footer-col reveal stagger-3"><h4>Company</h4><div class="footer-links"><a href="https://sites.google.com/view/my-boiler-health/contact-us/about-us?authuser=1">About Us</a><a href="https://sites.google.com/view/my-boiler-health/contact-us/privacy-policy">Privacy Policy</a></div></div>
+<div class="footer-col reveal stagger-4"><h4>Contact</h4><div class="footer-links"><a href="mailto:contactboilerhealth@atomicmail.io">contactboilerhealth@atomicmail.io</a></div></div>
+</div>
+<div class="footer-bottom">© 2026 BoilerHealth. All Rights Reserved.</div>
+</div>
+</footer>
+<script type="text/javascript">var Tawk_API=Tawk_API||{},Tawk_LoadStart=new Date();Tawk_API.onBeforeLoad=function(){Tawk_API.hideWidget();};Tawk_API.onChatMessageAgent=function(){var popup=document.getElementById('chat-popup');if(popup&&typeof Tawk_API!=='undefined'&&(!Tawk_API.isChatMaximized||!Tawk_API.isChatMaximized())){popup.classList.add('show');setTimeout(function(){if(popup)popup.classList.remove('show');},6000);}};(function(){var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];s1.async=true;s1.src='https://embed.tawk.to/69fc50d3d66edf1c3469954e/1jo0pnet0';s1.charset='UTF-8';s1.setAttribute('crossorigin','*');s0.parentNode.insertBefore(s1,s0);})();</script>
+<script>
+(function(){const p=document.getElementById('scrollProgress');window.addEventListener('scroll',()=>{p.style.width=(window.scrollY/(document.documentElement.scrollHeight-window.innerHeight))*100+'%'}, {passive:true})})();
+(function(){const t="A dedicated platform created solely to store and protect boiler-related data safely, securely, and privately.";const e=document.getElementById('typewriter');let i=0;function type(){if(i<t.length){e.textContent+=t.charAt(i);i++;setTimeout(type,35)}}setTimeout(type,1200)})();
+(function(){const o=new IntersectionObserver((entries)=>{entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('revealed');entry.target.querySelectorAll('.stat-value[data-target]').forEach(c=>{const t=+c.dataset.target,d=2000,s=performance.now();function u(n){const e=Math.min((n-s)/d,1),v=Math.floor((1-Math.pow(1-e,4))*t);c.textContent=v+(t===100?'':'');if(e<1)requestAnimationFrame(u);else c.textContent=t+(t===100?'':'')}requestAnimationFrame(u)});o.unobserve(entry.target)}})},{rootMargin:'0px 0px -80px 0px',threshold:0.08});document.querySelectorAll('.reveal,.reveal-scale,.reveal-left,.reveal-right,.reveal-blur').forEach(el=>o.observe(el))})();
+</script>
+</body>
+</html>
